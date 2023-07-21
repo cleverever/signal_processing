@@ -1,28 +1,29 @@
 module FFT#(parameter SIZE = 8, IN_BITS = 32, OUT_BITS = 32)
 (
-    input logic[IN_BITS - 1 : 0] in[SIZE],
-    output logic[OUT_BITS - 1 : 0] out_re[SIZE]
-    output logic[OUT_BITS - 1 : 0] out_im[SIZE]
+    input logic signed[IN_BITS - 1 : 0] in[SIZE],
+    output logic signed[OUT_BITS - 1 : 0] out_re[SIZE],
+    output logic signed[OUT_BITS - 1 : 0] out_im[SIZE]
 );
 
 localparam LEVELS = $clog2(SIZE);
+localparam STEP_RESOLUTION = OUT_BITS - IN_BITS;
 
-logic[IN_BITS - 1 : 0] bit_rev[SIZE];
-for(logic unsigned[$clog2(SIZE) - 1 : 0] i = 0; i < SIZE; i++) begin
-    assign bit_rev[{<<{i}}] = in[i];
+logic signed[IN_BITS - 1 : 0] bit_rev[SIZE];
+for(genvar i = 0; i < SIZE; i++) begin
+    assign bit_rev[{<<{i[$clog2(SIZE) - 1 : 0]}}] = in[i];
 end
 
-logic[OUT_BITS - 1 : 0] re[LEVELS + 1][SIZE];
-logic[OUT_BITS - 1 : 0] im[LEVELS + 1][SIZE];
+logic signed[OUT_BITS - 1 : 0] re[LEVELS + 1][SIZE];
+logic signed[OUT_BITS - 1 : 0] im[LEVELS + 1][SIZE];
 
-assign re[0] = in;
+assign re[0] = bit_rev;
 assign im[0] = '{default:0};
 assign out_re = re[LEVELS];
 assign out_im = im[LEVELS];
 
-for(int i = 0; i < LEVELS; i++) begin
-    for(int j = 0; j < SIZE; j = j + (2 ** (i + 1))) begin
-        FFT_cross#(.SIZE(i), .BITS()) cross
+for(genvar i = 0; i < LEVELS; i++) begin : LEVEL
+    for(genvar j = 0; j < SIZE; j = j + (2 ** (i + 1))) begin : SET
+        FFT_cross #(.SIZE(2 ** (i + 1)), .BITS(32), .RESOLUTION(8)) c
         (
             .in_re(re[i][j +: (2 ** (i + 1))]),
             .in_im(im[i][j +: (2 ** (i + 1))]),
